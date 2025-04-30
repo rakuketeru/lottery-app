@@ -16,46 +16,43 @@
 
   <script>
     const params = new URLSearchParams(location.search);
-    const activityId = params.get('activityId') || 'default';
+    const activityId = params.get('activityId');
 
     const titleEl = document.getElementById('title');
     const statsEl = document.getElementById('stats');
     const resultEl = document.getElementById('result');
     const button = document.getElementById('drawBtn');
 
-    function getData() {
-      const data = localStorage.getItem(activityId);
-      return data ? JSON.parse(data) : null;
-    }
-
-    function fetchStatus() {
-      const data = getData();
-      if (!data) {
-        titleEl.textContent = "❌ 活动不存在";
-        statsEl.textContent = "请联系主办方重新扫码";
+    async function fetchStatus() {
+      if (!activityId) {
+        titleEl.textContent = "❌ 缺少 activityId";
         button.disabled = true;
         return;
       }
-      titleEl.textContent = `🎯 ${data.title}`;
-      statsEl.textContent = `👥 已参与 ${data.total} 人 / 🏆 中签 ${data.win.length} 人`;
-    }
-
-    function drawLottery() {
-      const data = getData();
-      if (!data || data.total >= data.max) {
-        resultEl.textContent = "❌ 抽签已结束";
+      const res = await fetch(`/api/status?activityId=${activityId}`);
+      if (!res.ok) {
+        titleEl.textContent = "❌ 活动不存在";
+        button.disabled = true;
         return;
       }
-      data.total += 1;
-      const lucky = data.win.length < data.limit && Math.random() < 0.5;
-      if (lucky) {
-        data.win.push(Date.now());
+      const data = await res.json();
+      titleEl.textContent = `🎯 ${data.title}`;
+      statsEl.textContent = `👥 已参与 ${data.total} 人 / 🏆 中签 ${data.win} 人`;
+    }
+
+    async function drawLottery() {
+      const res = await fetch(`/api/draw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activityId })
+      });
+      const data = await res.json();
+      button.disabled = true;
+      if (data.result) {
         resultEl.textContent = "🎉 恭喜你中签了！";
       } else {
         resultEl.textContent = "😢 很遗憾，未中签";
       }
-      localStorage.setItem(activityId, JSON.stringify(data));
-      button.disabled = true;
       fetchStatus();
     }
 
