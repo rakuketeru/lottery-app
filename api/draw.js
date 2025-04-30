@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   }
 
   // 查询是否已抽签
-  const { data: existing, error: existErr } = await supabase
+  const { data: existing } = await supabase
     .from('draw_records')
     .select('*')
     .eq('activity_id', activityId)
@@ -17,7 +17,10 @@ export default async function handler(req, res) {
     .single()
 
   if (existing) {
-    return res.status(200).json({ alreadyDrawn: true, draw_result: existing.draw_result })
+    return res.status(200).json({
+      alreadyDrawn: true,
+      draw_result: existing.draw_result
+    })
   }
 
   // 查询活动信息
@@ -49,15 +52,28 @@ export default async function handler(req, res) {
   const currentWinRate = (activity.win_limit - wins) / (activity.total_limit - total)
   const win = Math.random() < currentWinRate
 
-  const { error: insertErr } = await supabase.from('draw_records').insert({
-    activity_id: activityId,
-    uid,
-    draw_result: win,
-  })
+  const { error: insertErr } = await supabase
+    .from('draw_records')
+    .insert({ activity_id: activityId, uid, draw_result: win })
 
   if (insertErr) {
-    return res.status(500).json({ error: '插入记录失败' })
+    // 处理并发冲突（如果重复插入失败）
+    if (insertErr.message.includes('duplicate key')) {
+      const { data: retryRecord } = await supabase
+        .from('draw_records')
+        .select('*')
+        .eq('activity_id', activityId)
+        .eq('uid', uid)
+        .single()
+
+      return res.status(200).json({
+        alreadyDrawn: true,
+        draw_result: retryRecord?.draw_result ?? false
+      })
+    }
+
+    return res.status(500).json({ error: '插入记录失败', detail: insertErr.message })
   }
 
-  res.status(200).json({ alreadyDrawn: false, draw_result: win })
+  return res.status(200).json({ alreadyDrawn: false, draw_result: win })
 }
