@@ -1,9 +1,7 @@
 import { supabase } from './_supabase'
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
-
-  const { activityId } = req.body
+  const activityId = req.query.activityId
   if (!activityId) return res.status(400).json({ error: 'Missing activityId' })
 
   const { data: activity, error: actErr } = await supabase
@@ -25,21 +23,11 @@ export default async function handler(req, res) {
     .eq('activity_id', activityId)
     .eq('draw_result', true)
 
-  if (total >= activity.total_limit)
-    return res.status(200).json({ result: false, reason: 'Max participants reached' })
-
-  if (wins >= activity.win_limit)
-    return res.status(200).json({ result: false, reason: 'Max winners reached' })
-
-  const chance = activity.win_limit / activity.total_limit
-  const result = Math.random() < chance
-
-  const { error: insertErr } = await supabase.from('draw_records').insert({
-    activity_id: activityId,
-    draw_result: result
+  res.status(200).json({
+    title: activity.title,
+    total_limit: activity.total_limit,
+    win_limit: activity.win_limit,
+    total,
+    win: wins
   })
-
-  if (insertErr) return res.status(500).json({ error: 'Draw failed' })
-
-  res.status(200).json({ result })
 }
