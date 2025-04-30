@@ -7,19 +7,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing activityId or uid' })
   }
 
-  // 是否已抽签
-  const { data: existing, error: existErr } = await supabase
+  // 检查是否已抽过
+  const { data: existing } = await supabase
     .from('draw_records')
     .select('*')
     .eq('activity_id', activityId)
     .eq('uid', uid)
-    .single()
+    .maybeSingle()
 
   if (existing) {
     return res.status(200).json({ alreadyDrawn: true, draw_result: existing.draw_result })
   }
 
-  // 查活动
+  // 查询活动
   const { data: activity, error: actErr } = await supabase
     .from('activities')
     .select('*')
@@ -46,17 +46,17 @@ export default async function handler(req, res) {
   }
 
   const currentWinRate = (activity.win_limit - wins) / (activity.total_limit - total)
-  const win = Math.random() < currentWinRate
+  const drawResult = Math.random() < currentWinRate
 
   const { error: insertErr } = await supabase.from('draw_records').insert({
     activity_id: activityId,
-    uid,
-    draw_result: win,
+    uid: uid,
+    draw_result: drawResult,
   })
 
   if (insertErr) {
-    return res.status(500).json({ error: '插入记录失败' })
+    return res.status(500).json({ error: '插入失败', detail: insertErr.message })
   }
 
-  res.status(200).json({ alreadyDrawn: false, draw_result: win })
+  return res.status(200).json({ alreadyDrawn: false, draw_result: drawResult })
 }
