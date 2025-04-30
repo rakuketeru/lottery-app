@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎯 抽签活动</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-center p-8 font-sans">
+  <h1 class="text-2xl font-bold mb-4" id="title">🎯 活动标题加载中...</h1>
+  <div class="text-gray-700 mb-2" id="stats">加载中...</div>
+  <button id="drawBtn" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+    点我抽签
+  </button>
+  <div class="mt-6 text-xl font-semibold text-green-600" id="result"></div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const activityId = params.get('activityId') || 'default';
+
+    const titleEl = document.getElementById('title');
+    const statsEl = document.getElementById('stats');
+    const resultEl = document.getElementById('result');
+    const button = document.getElementById('drawBtn');
+
+    async function fetchStatus() {
+      const res = await fetch(`https://mocki.io/v1/1855efbb-fc34-46bb-8551-009b62f881e0`);
+      const data = await res.json();
+      titleEl.textContent = data.title;
+      statsEl.textContent = `已参与 ${data.total} 人 / 中签 ${data.win} 人`;
+    }
+
+    async function drawLottery() {
+      const lucky = Math.random() < 0.3;
+      button.disabled = true;
+      resultEl.textContent = lucky ? "🎉 恭喜你中签了！" : "😢 很遗憾，未中签";
+      await fetchStatus();
+    }
+
+    button.addEventListener('click', drawLottery);
+    fetchStatus();
+  </script>
+</body>
+</html>
