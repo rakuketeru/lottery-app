@@ -1,45 +1,51 @@
-import { supabase } from './_supabase'
+import { supabase } from './_supabase.js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
+  const activityId = req.query.activityId
+  if (req.method !== 'POST' || !activityId) {
+    return res.status(400).json({ error: 'Invalid request' })
+  }
 
-  const { activityId } = req.body
-  if (!activityId) return res.status(400).json({ error: 'Missing activityId' })
-
-  const { data: activity, error: actErr } = await supabase
+  const { data: activity, error: activityErr } = await supabase
     .from('activities')
     .select('*')
     .eq('id', activityId)
     .single()
 
-  if (actErr || !activity) return res.status(400).json({ error: 'Invalid activityId' })
+  if (activityErr || !activity) {
+    return res.status(400).json({ error: 'Invalid activityId' })
+  }
 
-  const { count: total } = await supabase
+  const { count: totalDraws } = await supabase
     .from('draw_records')
     .select('*', { count: 'exact', head: true })
     .eq('activity_id', activityId)
 
-  const { count: wins } = await supabase
+  const { count: winDraws } = await supabase
     .from('draw_records')
     .select('*', { count: 'exact', head: true })
     .eq('activity_id', activityId)
     .eq('draw_result', true)
 
-  if (total >= activity.total_limit)
-    return res.status(200).json({ result: false, reason: 'Max participants reached' })
+  if (totalDraws >= activity.total_limit) {
+    return res.status(400).json({ error: '抽签人数已满' })
+  }
 
-  if (wins >= activity.win_limit)
-    return res.status(200).json({ result: false, reason: 'Max winners reached' })
+  const remainSlots = activity.win_limit - winDraws
+  const remainPeople = activity.total_limit - totalDraws
+  const winChance = remainSlots / remainPeople
 
-  const chance = activity.win_limit / activity.total_limit
-  const result = Math.random() < chance
+  const draw_result = Math.random() < winChance
 
-  const { error: insertErr } = await supabase.from('draw_records').insert({
-    activity_id: activityId,
-    draw_result: result
-  })
+  const { data, error } = await supabase
+    .from('draw_records')
+    .insert([{ activity_id: activityId, draw_result }])
+    .select()
+    .single()
 
-  if (insertErr) return res.status(500).json({ error: 'Draw failed' })
+  if (error) {
+    return res.status(500).json({ error: '数据库插入失败' })
+  }
 
-  res.status(200).json({ result })
+  res.status(200).json(data)
 }
