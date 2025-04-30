@@ -1,28 +1,52 @@
-<script>
-  const activityId = new URLSearchParams(location.search).get('activityId');
-  const uidKey = `lottery_uid_${activityId}`;
-  let uid = localStorage.getItem(uidKey);
-  if (!uid) {
-    uid = crypto.randomUUID();
-    localStorage.setItem(uidKey, uid);
-  }
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>抽签系统</title>
+</head>
+<body>
+  <h2 id="title">🎯 活动标题</h2>
+  <p>已有 <span id="total">0</span> 人参与，<span id="wins">0</span> 人中签</p>
+  <button id="draw-button">点我抽签</button>
+  <p id="result"></p>
 
-  async function draw() {
-    const res = await fetch('/api/draw', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ activityId, uid })
-    });
+  <script>
+    // 🔒 生成并保存 uid
+    const uid = localStorage.getItem('uid') || crypto.randomUUID();
+    localStorage.setItem('uid', uid);
 
-    const result = await res.json();
-    if (result.alreadyDrawn) {
-      alert(result.draw_result ? '你已经抽中过啦！' : '你已经抽签了，但未中签');
-    } else {
-      alert(result.draw_result ? '恭喜中签！' : '很遗憾，未中签');
+    // 🎯 获取 activityId
+    const params = new URLSearchParams(location.search);
+    const activityId = params.get('activityId');
+
+    // ⏳ 页面初始化：显示活动人数等信息
+    async function loadStatus() {
+      const res = await fetch(`/api/status?activityId=${activityId}`);
+      const data = await res.json();
+      document.getElementById('title').innerText = '🎯 ' + data.title;
+      document.getElementById('total').innerText = data.total;
+      document.getElementById('wins').innerText = data.wins;
     }
-  }
 
-  document.getElementById('drawBtn').addEventListener('click', draw);
-</script>
+    loadStatus();
+
+    // 🎉 抽签按钮事件
+    document.getElementById('draw-button').onclick = async () => {
+      const res = await fetch('/api/draw', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ activityId, uid })
+      });
+      const result = await res.json();
+
+      if (result.alreadyDrawn) {
+        document.getElementById('result').innerText = result.draw_result ? '✅ 已中签' : '😢 已抽签，未中签';
+      } else {
+        document.getElementById('result').innerText = result.draw_result ? '🎉 恭喜中签！' : '😢 很遗憾，未中签';
+      }
+
+      loadStatus(); // 更新人数
+    };
+  </script>
+</body>
+</html>
