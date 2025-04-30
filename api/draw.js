@@ -59,4 +59,5 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ alreadyDrawn: false, draw_result: drawResult })
+  console.log('DRAW REQUEST BODY:', req.body)
 }
