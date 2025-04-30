@@ -23,18 +23,40 @@
     const resultEl = document.getElementById('result');
     const button = document.getElementById('drawBtn');
 
-    async function fetchStatus() {
-      const res = await fetch(`https://mocki.io/v1/1855efbb-fc34-46bb-8551-009b62f881e0`);
-      const data = await res.json();
-      titleEl.textContent = data.title;
-      statsEl.textContent = `已参与 ${data.total} 人 / 中签 ${data.win} 人`;
+    function getData() {
+      const data = localStorage.getItem(activityId);
+      return data ? JSON.parse(data) : null;
     }
 
-    async function drawLottery() {
-      const lucky = Math.random() < 0.3;
+    function fetchStatus() {
+      const data = getData();
+      if (!data) {
+        titleEl.textContent = "❌ 活动不存在";
+        statsEl.textContent = "请联系主办方重新扫码";
+        button.disabled = true;
+        return;
+      }
+      titleEl.textContent = `🎯 ${data.title}`;
+      statsEl.textContent = `👥 已参与 ${data.total} 人 / 🏆 中签 ${data.win.length} 人`;
+    }
+
+    function drawLottery() {
+      const data = getData();
+      if (!data || data.total >= data.max) {
+        resultEl.textContent = "❌ 抽签已结束";
+        return;
+      }
+      data.total += 1;
+      const lucky = data.win.length < data.limit && Math.random() < 0.5;
+      if (lucky) {
+        data.win.push(Date.now());
+        resultEl.textContent = "🎉 恭喜你中签了！";
+      } else {
+        resultEl.textContent = "😢 很遗憾，未中签";
+      }
+      localStorage.setItem(activityId, JSON.stringify(data));
       button.disabled = true;
-      resultEl.textContent = lucky ? "🎉 恭喜你中签了！" : "😢 很遗憾，未中签";
-      await fetchStatus();
+      fetchStatus();
     }
 
     button.addEventListener('click', drawLottery);

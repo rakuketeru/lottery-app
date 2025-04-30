@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>创建抽签活动</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-center p-8 font-sans">
+  <h1 class="text-2xl font-bold mb-6">🎯 创建抽签活动</h1>
+  <div class="space-y-4">
+    <input id="title" placeholder="活动标题" class="w-full p-2 border rounded" />
+    <input id="max" placeholder="参与人数上限" type="number" class="w-full p-2 border rounded" />
+    <input id="limit" placeholder="中签人数" type="number" class="w-full p-2 border rounded" />
+    <button onclick="create()" class="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+      ✅ 创建并生成二维码
+    </button>
+    <div id="qrcode" class="mt-6"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script>
+    function create() {
+      const id = "act_" + Math.random().toString(36).slice(2, 8);
+      const data = {
+        title: document.getElementById('title').value || "未命名活动",
+        max: parseInt(document.getElementById('max').value || "100"),
+        limit: parseInt(document.getElementById('limit').value || "20"),
+        total: 0,
+        win: []
+      };
+      localStorage.setItem(id, JSON.stringify(data));
+      const url = location.origin + "/index.html?activityId=" + id;
+      QRCode.toCanvas(document.createElement('canvas'), url, function (err, canvas) {
+        const qr = document.getElementById('qrcode');
+        qr.innerHTML = "";
+        qr.appendChild(canvas);
+        const link = document.createElement("a");
+        link.href = url;
+        link.innerText = "📎 点击这里复制链接";
+        link.className = "block mt-4 text-blue-500 underline";
+        qr.appendChild(link);
+      });
+    }
+  </script>
+</body>
+</html>
