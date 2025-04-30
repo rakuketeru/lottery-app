@@ -1,51 +1,53 @@
-import { supabase } from './_supabase.js'
+import { supabase } from './_supabase'
 
 export default async function handler(req, res) {
-  const activityId = req.query.activityId
-  if (req.method !== 'POST' || !activityId) {
-    return res.status(400).json({ error: 'Invalid request' })
+  const { activityId, userId } = req.query
+  if (!activityId || !userId) {
+    return res.status(400).json({ error: 'Missing activityId or userId' })
   }
 
-  const { data: activity, error: activityErr } = await supabase
-    .from('activities')
+  // 查重
+  const { data: existing, error: checkErr } = await supabase
+    .from('draw_records')
     .select('*')
-    .eq('id', activityId)
-    .single()
+    .eq('activity_id', activityId)
+    .eq('user_id', userId)
+    .maybeSingle()
 
-  if (activityErr || !activity) {
-    return res.status(400).json({ error: 'Invalid activityId' })
-  }
+  if (checkErr) return res.status(500).json({ error: 'Check failed' })
+  if (existing) return res.status(200).json({ result: existing.draw_result, duplicate: true })
 
-  const { count: totalDraws } = await supabase
+  // 抽奖逻辑
+  const { count: total } = await supabase
     .from('draw_records')
     .select('*', { count: 'exact', head: true })
     .eq('activity_id', activityId)
 
-  const { count: winDraws } = await supabase
+  const { data: activity } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('id', activityId)
+    .maybeSingle()
+
+  if (!activity) return res.status(400).json({ error: 'Invalid activity' })
+
+  const winCount = await supabase
     .from('draw_records')
     .select('*', { count: 'exact', head: true })
     .eq('activity_id', activityId)
     .eq('draw_result', true)
 
-  if (totalDraws >= activity.total_limit) {
-    return res.status(400).json({ error: '抽签人数已满' })
-  }
+  const remaining = activity.total_limit - total
+  const remainingWins = activity.win_limit - winCount.count
+  const chance = remainingWins / remaining
 
-  const remainSlots = activity.win_limit - winDraws
-  const remainPeople = activity.total_limit - totalDraws
-  const winChance = remainSlots / remainPeople
+  const result = Math.random() < chance
 
-  const draw_result = Math.random() < winChance
-
-  const { data, error } = await supabase
+  const { error: insertErr } = await supabase
     .from('draw_records')
-    .insert([{ activity_id: activityId, draw_result }])
-    .select()
-    .single()
+    .insert([{ activity_id: activityId, user_id: userId, draw_result: result }])
 
-  if (error) {
-    return res.status(500).json({ error: '数据库插入失败' })
-  }
+  if (insertErr) return res.status(500).json({ error: 'Insert failed' })
 
-  res.status(200).json(data)
+  res.status(200).json({ result, duplicate: false })
 }
