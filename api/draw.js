@@ -1,6 +1,12 @@
 import { supabase } from './_supabase'
 
 export default async function handler(req, res) {
+  console.log('DRAW REQUEST METHOD:', req.method);
+  console.log('DRAW REQUEST BODY:', req.body);
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST allowed' });
+  }
   const { activityId, uid } = req.body
 
   if (!activityId || !uid) {
@@ -59,5 +65,5 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ alreadyDrawn: false, draw_result: drawResult })
-  console.log('DRAW REQUEST BODY:', req.body)
+
 }
