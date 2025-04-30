@@ -2,47 +2,32 @@
   const urlParams = new URLSearchParams(window.location.search)
   const activityId = urlParams.get('activityId')
 
-  if (!activityId) {
-    document.body.innerHTML = '<p>无效的活动链接</p>'
-  }
+  const uid = (() => {
+    let id = localStorage.getItem('lottery_uid')
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem('lottery_uid', id)
+    }
+    return id
+  })()
 
-  const uidKey = `lottery_uid_${activityId}`
-  let uid = localStorage.getItem(uidKey)
-  if (!uid) {
-    uid = crypto.randomUUID()
-    localStorage.setItem(uidKey, uid)
-  }
-
-  async function updateStatus() {
-    const res = await fetch(`/api/status?activityId=${activityId}`)
-    const data = await res.json()
-    if (data.error) return alert(data.error)
-    document.getElementById('title').innerText = data.title
-    document.getElementById('total').innerText = data.total
-    document.getElementById('win').innerText = data.win
-  }
-
-  async function draw() {
-    const res = await fetch('/api/draw', {
+  document.getElementById('draw-button').addEventListener('click', async () => {
+    const res = await fetch(`/api/draw`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ activityId, uid })
     })
 
     const result = await res.json()
 
     if (result.alreadyDrawn) {
-      alert(result.draw_result ? '你已经中签啦！' : '你已经抽过啦，未中签')
-    } else if (result.draw_result) {
-      alert('🎉 恭喜你中签了！')
+      alert(result.draw_result ? '您已抽中 🎉' : '您已抽签，未中签')
     } else {
-      alert('😢 很遗憾，未中签')
+      alert(result.draw_result ? '恭喜您抽中了 🎊' : '很遗憾，未中签')
     }
 
-    updateStatus()
-  }
-
-  document.getElementById('drawBtn').addEventListener('click', draw)
-
-  updateStatus()
+    window.location.reload()
+  })
 </script>
