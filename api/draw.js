@@ -2,10 +2,10 @@ import { supabase } from './_supabase'
 
 export default async function handler(req, res) {
   const activityId = req.query.activityId
-  const uid = req.query.uid
+  const id = req.query.id
 
-  if (!activityId || !uid) {
-    return res.status(400).json({ error: 'Missing activityId or uid' })
+  if (!activityId || !id) {
+    return res.status(400).json({ error: 'Missing activityId or id' })
   }
 
   // 查询是否已抽签
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     .from('draw_records')
     .select('*')
     .eq('activity_id', activityId)
-    .eq('uid', uid)
+    .eq('id', id)
     .single()
 
   if (existing) {
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
   const { error: insertErr } = await supabase
     .from('draw_records')
-    .insert({ activity_id: activityId, uid, draw_result: win })
+    .insert({ activity_id: activityId, id, draw_result: win })
 
   if (insertErr) {
     // 处理并发冲突（如果重复插入失败）
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
         .from('draw_records')
         .select('*')
         .eq('activity_id', activityId)
-        .eq('uid', uid)
+        .eq('id', id)
         .single()
 
       return res.status(200).json({
